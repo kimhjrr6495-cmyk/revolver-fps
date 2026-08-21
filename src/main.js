@@ -1,17 +1,12 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
 
-const GAME_VERSION = "STAGE 3 · v3.0.0";
+const GAME_VERSION = "STAGE 3.5 · v3.5.0";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87a7c4);
 scene.fog = new THREE.Fog(0x87a7c4, 25, 70);
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.05,
-  120
-);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 120);
 camera.rotation.order = "YXZ";
 scene.add(camera);
 
@@ -22,52 +17,72 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// ---------- HUD ----------
+// ---------- UI ----------
 const info = document.getElementById("info");
-info.innerHTML = `<strong>${GAME_VERSION}</strong><br>WASD 이동 · Space 점프 · 좌클릭 발사 · R 재장전 · ESC 마우스 해제`;
+info.innerHTML = `<strong>${GAME_VERSION}</strong><br>1 AR-01 · 2 REVOLVER · 좌클릭 발사 · R 재장전 · Space 점프`;
 
-document.querySelector(".panel h1").textContent = "HTML FPS — Stage 3";
-document.querySelector(".panel p").textContent = "리볼버 손맛 / 반동 / 사운드 테스트";
+document.querySelector(".panel h1").textContent = "HTML FPS — Stage 3.5";
+document.querySelector(".panel p").textContent = "무기 슬롯 / 돌격소총 / 리볼버 전환 테스트";
 document.querySelector(".controls").innerHTML = `
   <span>WASD — 이동</span><span>Mouse — 시점</span>
   <span>Space — 점프</span><span>좌클릭 — 발사</span>
+  <span>1 — AR-01</span><span>2 — REVOLVER</span>
   <span>R — 재장전</span><span>ESC — 마우스 해제</span>`;
 
-const ammoHud = document.createElement("div");
-ammoHud.id = "ammoHud";
-ammoHud.style.cssText =
-  "position:absolute;right:24px;bottom:24px;min-width:160px;padding:12px 16px;border-radius:12px;background:rgba(0,0,0,.52);text-align:right;font-variant-numeric:tabular-nums;backdrop-filter:blur(4px)";
-ammoHud.innerHTML = `
-  <div id="weaponState" style="font-size:11px;font-weight:800;letter-spacing:.14em;opacity:.75">REVOLVER</div>
-  <div>
-    <span id="ammoCurrent" style="font-size:42px;font-weight:900">6</span>
-    <span style="margin:0 6px;font-size:21px;opacity:.45">/</span>
-    <span id="ammoMax" style="font-size:21px;font-weight:700;opacity:.65">6</span>
-  </div>`;
-document.getElementById("hud").appendChild(ammoHud);
+const runtimeStyle = document.createElement("style");
+runtimeStyle.textContent = `
+  #weaponHud { position:absolute; right:24px; bottom:24px; width:235px; padding:14px 16px; border-radius:14px; background:rgba(0,0,0,.56); backdrop-filter:blur(5px); font-variant-numeric:tabular-nums; }
+  #weaponSlots { display:grid; gap:5px; margin-bottom:10px; }
+  .weapon-slot { display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border-radius:7px; font-size:11px; letter-spacing:.08em; opacity:.48; transition:.12s ease; }
+  .weapon-slot.active { opacity:1; background:rgba(255,255,255,.12); transform:translateX(-3px); }
+  .weapon-slot .slot-key { min-width:20px; font-weight:900; opacity:.72; }
+  .weapon-slot .slot-ammo { font-weight:800; opacity:.72; }
+  #weaponState { font-size:11px; font-weight:900; letter-spacing:.15em; opacity:.76; text-align:right; }
+  #ammoLine { text-align:right; line-height:1; margin-top:3px; }
+  #ammoCurrent { font-size:43px; font-weight:950; }
+  #ammoMax { font-size:21px; font-weight:800; opacity:.58; }
+  #switchToast { position:absolute; left:50%; bottom:72px; transform:translateX(-50%) translateY(8px); padding:7px 13px; border-radius:8px; background:rgba(0,0,0,.46); font-size:12px; font-weight:900; letter-spacing:.14em; opacity:0; transition:opacity .12s, transform .12s; }
+  #switchToast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #hitFeedback { position:absolute; left:50%; top:calc(50% + 34px); transform:translate(-50%,-50%) scale(.8); font-size:13px; font-weight:900; letter-spacing:.12em; opacity:0; transition:opacity .07s,transform .07s; }
+`;
+document.head.appendChild(runtimeStyle);
+
+const hud = document.getElementById("hud");
+const weaponHud = document.createElement("div");
+weaponHud.id = "weaponHud";
+weaponHud.innerHTML = `
+  <div id="weaponSlots">
+    <div class="weapon-slot active" data-slot="1"><span><span class="slot-key">[1]</span> AR-01</span><span class="slot-ammo" id="slotAmmo1">30 / 30</span></div>
+    <div class="weapon-slot" data-slot="2"><span><span class="slot-key">[2]</span> REVOLVER</span><span class="slot-ammo" id="slotAmmo2">6 / 6</span></div>
+  </div>
+  <div id="weaponState">AR-01</div>
+  <div id="ammoLine"><span id="ammoCurrent">30</span><span style="margin:0 6px;font-size:21px;opacity:.42">/</span><span id="ammoMax">30</span></div>`;
+hud.appendChild(weaponHud);
+
+const switchToast = document.createElement("div");
+switchToast.id = "switchToast";
+hud.appendChild(switchToast);
 
 const hitFeedback = document.createElement("div");
 hitFeedback.id = "hitFeedback";
-hitFeedback.style.cssText =
-  "position:absolute;left:50%;top:calc(50% + 34px);transform:translate(-50%,-50%) scale(.8);font-size:13px;font-weight:900;letter-spacing:.12em;opacity:0;transition:opacity .07s,transform .07s";
 hitFeedback.textContent = "HIT";
-document.getElementById("hud").appendChild(hitFeedback);
+hud.appendChild(hitFeedback);
 
 const shotFlash = document.createElement("div");
-shotFlash.style.cssText =
-  "position:absolute;inset:0;background:radial-gradient(circle at center,rgba(255,235,185,.08),rgba(255,180,80,.02) 35%,transparent 70%);opacity:0;transition:opacity .06s";
-document.getElementById("hud").appendChild(shotFlash);
+shotFlash.style.cssText = "position:absolute;inset:0;background:radial-gradient(circle at center,rgba(255,235,185,.08),rgba(255,180,80,.02) 35%,transparent 70%);opacity:0;transition:opacity .045s";
+hud.appendChild(shotFlash);
 
 const ammoCurrentElement = document.getElementById("ammoCurrent");
 const ammoMaxElement = document.getElementById("ammoMax");
 const weaponStateElement = document.getElementById("weaponState");
+const slotAmmo1 = document.getElementById("slotAmmo1");
+const slotAmmo2 = document.getElementById("slotAmmo2");
 const fpsElement = document.getElementById("fps");
 const stateElement = document.getElementById("state");
 const crosshair = document.getElementById("crosshair");
 
 // ---------- 조명 ----------
 scene.add(new THREE.HemisphereLight(0xdcecff, 0x48515d, 1.35));
-
 const sun = new THREE.DirectionalLight(0xffffff, 1.6);
 sun.position.set(10, 18, 8);
 sun.castShadow = true;
@@ -79,41 +94,23 @@ sun.shadow.camera.bottom = -30;
 scene.add(sun);
 
 // ---------- 월드 ----------
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(50, 50),
-  new THREE.MeshStandardMaterial({ color: 0x66727f, roughness: 0.95 })
-);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({ color: 0x66727f, roughness: 0.95 }));
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
 const colliders = [];
 const raycastWorld = [];
-
 function addBox({ x, y, z, w, h, d, color = 0x39434d }) {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
-  );
-
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: 0.8 }));
   mesh.position.set(x, y + h / 2, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   scene.add(mesh);
-
-  colliders.push({
-    minX: x - w / 2,
-    maxX: x + w / 2,
-    minY: y,
-    maxY: y + h,
-    minZ: z - d / 2,
-    maxZ: z + d / 2,
-  });
-
+  colliders.push({ minX: x-w/2, maxX: x+w/2, minY: y, maxY: y+h, minZ: z-d/2, maxZ: z+d/2 });
   raycastWorld.push(mesh);
   return mesh;
 }
-
 addBox({ x: 0, y: 0, z: -12, w: 24, h: 3.5, d: 0.8 });
 addBox({ x: 0, y: 0, z: 12, w: 24, h: 3.5, d: 0.8 });
 addBox({ x: -12, y: 0, z: 0, w: 0.8, h: 3.5, d: 24 });
@@ -121,7 +118,6 @@ addBox({ x: 12, y: 0, z: 0, w: 0.8, h: 3.5, d: 24 });
 addBox({ x: -4.5, y: 0, z: -3.5, w: 3.4, h: 2.2, d: 3.4, color: 0x7b5d45 });
 addBox({ x: 4.5, y: 0, z: 2.5, w: 4.2, h: 1.7, d: 2.4, color: 0x526f52 });
 addBox({ x: 1.5, y: 0, z: -6.5, w: 2, h: 2.8, d: 2, color: 0x6c5d76 });
-
 const grid = new THREE.GridHelper(24, 24, 0xffffff, 0xffffff);
 grid.position.y = 0.005;
 grid.material.opacity = 0.12;
@@ -129,717 +125,237 @@ grid.material.transparent = true;
 scene.add(grid);
 
 function addTarget(x, z) {
-  const target = new THREE.Mesh(
-    new THREE.BoxGeometry(0.9, 1.6, 0.28),
-    new THREE.MeshStandardMaterial({
-      color: 0xb94444,
-      roughness: 0.65,
-      emissive: 0x000000,
-    })
-  );
-
-  target.position.set(x, 0.8, z);
+  const target = new THREE.Mesh(new THREE.BoxGeometry(0.9,1.6,0.28), new THREE.MeshStandardMaterial({ color:0xb94444, roughness:0.65, emissive:0x000000 }));
+  target.position.set(x,0.8,z);
   target.castShadow = true;
   target.userData.isTarget = true;
   scene.add(target);
   raycastWorld.push(target);
 }
-
-addTarget(-3, -9.5);
-addTarget(0, -10);
-addTarget(3.2, -9.2);
+addTarget(-3,-9.5); addTarget(0,-10); addTarget(3.2,-9.2);
 
 // ---------- 플레이어 ----------
-const player = {
-  position: new THREE.Vector3(0, 0, 6),
-  velocityY: 0,
-  radius: 0.36,
-  height: 1.8,
-  eyeHeight: 1.62,
-  moveSpeed: 6.4,
-  jumpSpeed: 8.2,
-  gravity: -23,
-  grounded: true,
-};
-
+const player = { position:new THREE.Vector3(0,0,6), velocityY:0, radius:0.36, height:1.8, eyeHeight:1.62, moveSpeed:6.4, jumpSpeed:8.2, gravity:-23, grounded:true };
 let yaw = Math.PI;
 let pitch = 0;
 const sensitivity = 0.0021;
-
-let recoilPitch = 0;
-let recoilYaw = 0;
-let shakePitch = 0;
-let shakeYaw = 0;
-let shakePower = 0;
-
-function syncCamera() {
-  camera.position.set(
-    player.position.x,
-    player.position.y + player.eyeHeight,
-    player.position.z
-  );
-
+let recoilPitch = 0, recoilYaw = 0, shakePitch = 0, shakeYaw = 0, shakePower = 0;
+function syncCamera(){
+  camera.position.set(player.position.x, player.position.y+player.eyeHeight, player.position.z);
   camera.rotation.y = yaw + recoilYaw + shakeYaw;
   camera.rotation.x = pitch + recoilPitch + shakePitch;
 }
-
 syncCamera();
 
-// ---------- 리볼버 모델 ----------
-const weaponRoot = new THREE.Group();
-const weaponBasePosition = new THREE.Vector3(0.42, -0.34, -0.68);
-weaponRoot.position.copy(weaponBasePosition);
-camera.add(weaponRoot);
-
-const metal = new THREE.MeshStandardMaterial({
-  color: 0x32373d,
-  metalness: 0.9,
-  roughness: 0.22,
-});
-const dark = new THREE.MeshStandardMaterial({
-  color: 0x15181c,
-  metalness: 0.7,
-  roughness: 0.35,
-});
-const grip = new THREE.MeshStandardMaterial({
-  color: 0x5c3524,
-  roughness: 0.85,
-});
-const brass = new THREE.MeshStandardMaterial({
-  color: 0x9b7335,
-  metalness: 0.75,
-  roughness: 0.28,
-});
-
-function gunPart(geometry, material, position, rotation = [0, 0, 0]) {
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(...position);
-  mesh.rotation.set(...rotation);
-  weaponRoot.add(mesh);
-  return mesh;
+// ---------- 무기 모델 ----------
+const weaponRig = new THREE.Group();
+const weaponBasePosition = new THREE.Vector3(0.42,-0.34,-0.68);
+weaponRig.position.copy(weaponBasePosition);
+camera.add(weaponRig);
+const matMetal = new THREE.MeshStandardMaterial({color:0x32373d,metalness:0.9,roughness:0.22});
+const matDark = new THREE.MeshStandardMaterial({color:0x15181c,metalness:0.72,roughness:0.35});
+const matGrip = new THREE.MeshStandardMaterial({color:0x5c3524,roughness:0.85});
+const matBrass = new THREE.MeshStandardMaterial({color:0x9b7335,metalness:0.75,roughness:0.28});
+const matPolymer = new THREE.MeshStandardMaterial({color:0x252b30,roughness:0.55,metalness:0.25});
+function addPart(parent, geometry, material, position, rotation=[0,0,0]){ const m=new THREE.Mesh(geometry,material); m.position.set(...position); m.rotation.set(...rotation); parent.add(m); return m; }
+function createMuzzleFlash(){
+  const group=new THREE.Group(); group.visible=false;
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(0.11,0.32,8),new THREE.MeshBasicMaterial({color:0xffd27a,transparent:true,opacity:0.95,depthWrite:false}));
+  cone.rotation.x=-Math.PI/2; cone.position.z=-0.15; group.add(cone);
+  const core=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,8),new THREE.MeshBasicMaterial({color:0xfff0b0,transparent:true,opacity:0.95,depthWrite:false})); group.add(core);
+  const light=new THREE.PointLight(0xffb54f,0,3); group.add(light);
+  return {group,cone,core,light};
 }
+function buildRevolver(){
+  const group=new THREE.Group(); weaponRig.add(group);
+  addPart(group,new THREE.BoxGeometry(0.17,0.13,0.76),matMetal,[0,0.02,-0.18]);
+  const cylinder=addPart(group,new THREE.CylinderGeometry(0.145,0.145,0.25,12),matDark,[0,-0.01,0.11],[Math.PI/2,0,0]);
+  addPart(group,new THREE.BoxGeometry(0.18,0.4,0.17),matGrip,[0,-0.23,0.2],[-0.22,0,0]);
+  addPart(group,new THREE.BoxGeometry(0.09,0.05,0.19),matDark,[0,-0.12,0.08],[0.18,0,0]);
+  addPart(group,new THREE.CylinderGeometry(0.055,0.055,0.36,12),matDark,[0,0.02,-0.58],[Math.PI/2,0,0]);
+  addPart(group,new THREE.BoxGeometry(0.05,0.035,0.09),matBrass,[0,0.105,-0.43]);
+  const muzzle=new THREE.Object3D(); muzzle.position.set(0,0.02,-0.79); group.add(muzzle);
+  const flash=createMuzzleFlash(); flash.group.position.copy(muzzle.position); group.add(flash.group);
+  return {group,muzzle,flash,cylinder};
+}
+function buildAssaultRifle(){
+  const group=new THREE.Group(); group.position.set(-0.02,-0.01,0.02); weaponRig.add(group);
+  addPart(group,new THREE.BoxGeometry(0.21,0.18,0.72),matMetal,[0,0.01,-0.12]);
+  addPart(group,new THREE.BoxGeometry(0.17,0.12,0.42),matDark,[0,0.06,-0.58]);
+  addPart(group,new THREE.CylinderGeometry(0.035,0.035,0.58,10),matDark,[0,0.04,-0.96],[Math.PI/2,0,0]);
+  addPart(group,new THREE.BoxGeometry(0.25,0.07,0.18),matDark,[0,0.14,-0.21]);
+  addPart(group,new THREE.BoxGeometry(0.08,0.19,0.12),matGrip,[0,-0.13,0.02],[-0.2,0,0]);
+  addPart(group,new THREE.BoxGeometry(0.18,0.12,0.38),matPolymer,[0,0.02,0.42]);
+  const magazine=addPart(group,new THREE.BoxGeometry(0.15,0.32,0.19),matPolymer,[0,-0.22,-0.15],[-0.12,0,0]);
+  addPart(group,new THREE.BoxGeometry(0.12,0.06,0.1),matBrass,[0,0.16,-0.48]);
+  const muzzle=new THREE.Object3D(); muzzle.position.set(0,0.04,-1.27); group.add(muzzle);
+  const flash=createMuzzleFlash(); flash.group.position.copy(muzzle.position); flash.group.scale.setScalar(0.72); group.add(flash.group);
+  return {group,muzzle,flash,magazine,magazineBaseY:magazine.position.y};
+}
+const models={assaultRifle:buildAssaultRifle(),revolver:buildRevolver()};
+models.revolver.group.visible=false;
 
-gunPart(new THREE.BoxGeometry(0.17, 0.13, 0.76), metal, [0, 0.02, -0.18]);
-const cylinder = gunPart(
-  new THREE.CylinderGeometry(0.145, 0.145, 0.25, 12),
-  dark,
-  [0, -0.01, 0.11],
-  [Math.PI / 2, 0, 0]
-);
-gunPart(new THREE.BoxGeometry(0.18, 0.4, 0.17), grip, [0, -0.23, 0.2], [-0.22, 0, 0]);
-gunPart(new THREE.BoxGeometry(0.09, 0.05, 0.19), dark, [0, -0.12, 0.08], [0.18, 0, 0]);
-gunPart(new THREE.CylinderGeometry(0.055, 0.055, 0.36, 12), dark, [0, 0.02, -0.58], [Math.PI / 2, 0, 0]);
-gunPart(new THREE.BoxGeometry(0.05, 0.035, 0.09), brass, [0, 0.105, -0.43]);
-
-const muzzle = new THREE.Object3D();
-muzzle.position.set(0, 0.02, -0.79);
-weaponRoot.add(muzzle);
-
-const muzzleFlash = new THREE.Group();
-muzzleFlash.position.copy(muzzle.position);
-muzzleFlash.visible = false;
-weaponRoot.add(muzzleFlash);
-
-const flashCone = new THREE.Mesh(
-  new THREE.ConeGeometry(0.12, 0.34, 8),
-  new THREE.MeshBasicMaterial({
-    color: 0xffd27a,
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false,
-  })
-);
-flashCone.rotation.x = -Math.PI / 2;
-flashCone.position.z = -0.16;
-muzzleFlash.add(flashCone);
-
-const flashCore = new THREE.Mesh(
-  new THREE.SphereGeometry(0.08, 8, 8),
-  new THREE.MeshBasicMaterial({
-    color: 0xfff0b0,
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false,
-  })
-);
-muzzleFlash.add(flashCore);
-
-const muzzleLight = new THREE.PointLight(0xffb54f, 0, 3);
-muzzleFlash.add(muzzleLight);
+// ---------- 무기 데이터 ----------
+const weapons={
+  assaultRifle:{ id:"assaultRifle",slot:1,name:"AR-01",automatic:true,ammo:30,maxAmmo:30,damage:20,headDamage:40,fireInterval:60000/700,reloadDuration:1500,lastShotAt:-Infinity,reloading:false,reloadStartedAt:0,reloadEndsAt:0,baseSpread:0.0018,currentSpread:0.0018,maxSpread:0.016,spreadPerShot:0.00155,spreadRecovery:0.022,recoilPitch:0.0062,recoilYaw:0.0045,cameraShake:0.22,recoilKick:0,muzzleFlashUntil:0,crosshairBaseScale:1.16 },
+  revolver:{ id:"revolver",slot:2,name:"REVOLVER",automatic:false,ammo:6,maxAmmo:6,damage:55,headDamage:120,fireInterval:285,reloadDuration:1250,lastShotAt:-Infinity,reloading:false,reloadStartedAt:0,reloadEndsAt:0,baseSpread:0.00025,currentSpread:0.00025,maxSpread:0.003,spreadPerShot:0.00035,spreadRecovery:0.02,recoilPitch:0.028,recoilYaw:0.009,cameraShake:0.72,recoilKick:0,muzzleFlashUntil:0,crosshairBaseScale:0.96 }
+};
+let currentWeaponId="assaultRifle";
+let mouseHeld=false;
+const switching={active:false,targetId:null,startedAt:0,duration:360,swapped:false};
+const currentWeapon=()=>weapons[currentWeaponId];
+const currentModel=()=>models[currentWeaponId];
 
 // ---------- 사운드 ----------
-let audioContext = null;
-
-function ensureAudio() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
-
-  if (audioContext.state === "suspended") {
-    audioContext.resume();
-  }
+let audioContext=null;
+function ensureAudio(){ if(!audioContext) audioContext=new (window.AudioContext||window.webkitAudioContext)(); if(audioContext.state==="suspended") audioContext.resume(); }
+function makeNoiseBurst(duration,volume,bandFrequency){
+  const now=audioContext.currentTime;
+  const buffer=audioContext.createBuffer(1,Math.floor(audioContext.sampleRate*duration),audioContext.sampleRate);
+  const data=buffer.getChannelData(0);
+  for(let i=0;i<data.length;i++){ const t=i/data.length; data[i]=(Math.random()*2-1)*Math.pow(1-t,2.8); }
+  const source=audioContext.createBufferSource(); source.buffer=buffer;
+  const filter=audioContext.createBiquadFilter(); filter.type="bandpass"; filter.frequency.setValueAtTime(bandFrequency,now); filter.Q.setValueAtTime(0.8,now);
+  const gain=audioContext.createGain(); gain.gain.setValueAtTime(volume,now); gain.gain.exponentialRampToValueAtTime(0.001,now+duration);
+  source.connect(filter).connect(gain).connect(audioContext.destination); source.start(now);
 }
-
-function playGunshotSound() {
-  ensureAudio();
-
-  const now = audioContext.currentTime;
-
-  const buffer = audioContext.createBuffer(
-    1,
-    Math.floor(audioContext.sampleRate * 0.16),
-    audioContext.sampleRate
-  );
-
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < data.length; i++) {
-    const t = i / data.length;
-    data[i] =
-      (Math.random() * 2 - 1) *
-      Math.pow(1 - t, 3.2) *
-      (0.75 + Math.random() * 0.25);
-  }
-
-  const noise = audioContext.createBufferSource();
-  noise.buffer = buffer;
-
-  const noiseFilter = audioContext.createBiquadFilter();
-  noiseFilter.type = "bandpass";
-  noiseFilter.frequency.setValueAtTime(900, now);
-  noiseFilter.Q.setValueAtTime(0.7, now);
-
-  const noiseGain = audioContext.createGain();
-  noiseGain.gain.setValueAtTime(0.62, now);
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-
-  noise.connect(noiseFilter).connect(noiseGain).connect(audioContext.destination);
-  noise.start(now);
-
-  const thump = audioContext.createOscillator();
-  thump.type = "sine";
-  thump.frequency.setValueAtTime(95, now);
-  thump.frequency.exponentialRampToValueAtTime(48, now + 0.11);
-
-  const thumpGain = audioContext.createGain();
-  thumpGain.gain.setValueAtTime(0.5, now);
-  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-
-  thump.connect(thumpGain).connect(audioContext.destination);
-  thump.start(now);
-  thump.stop(now + 0.13);
-
-  const crack = audioContext.createOscillator();
-  crack.type = "square";
-  crack.frequency.setValueAtTime(520, now);
-
-  const crackGain = audioContext.createGain();
-  crackGain.gain.setValueAtTime(0.1, now);
-  crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-
-  crack.connect(crackGain).connect(audioContext.destination);
-  crack.start(now);
-  crack.stop(now + 0.04);
-}
-
-function playEmptyClick() {
-  ensureAudio();
-  const now = audioContext.currentTime;
-
-  const osc = audioContext.createOscillator();
-  osc.type = "square";
-  osc.frequency.setValueAtTime(1500, now);
-
-  const gain = audioContext.createGain();
-  gain.gain.setValueAtTime(0.065, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-
-  osc.connect(gain).connect(audioContext.destination);
-  osc.start(now);
-  osc.stop(now + 0.04);
-}
-
-function playReloadSound() {
-  ensureAudio();
-  const now = audioContext.currentTime;
-
-  [0, 0.38, 0.86].forEach((offset, i) => {
-    const osc = audioContext.createOscillator();
-    osc.type = i === 1 ? "triangle" : "square";
-    osc.frequency.setValueAtTime(i === 1 ? 650 : 1050, now + offset);
-
-    const gain = audioContext.createGain();
-    gain.gain.setValueAtTime(0.045, now + offset);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.055);
-
-    osc.connect(gain).connect(audioContext.destination);
-    osc.start(now + offset);
-    osc.stop(now + offset + 0.06);
-  });
-}
-
-// ---------- 무기 상태 / 이펙트 ----------
-const weapon = {
-  maxAmmo: 6,
-  ammo: 6,
-  fireInterval: 285,
-  reloadDuration: 1250,
-  lastShotAt: -Infinity,
-  reloading: false,
-  reloadStartedAt: 0,
-  reloadEndsAt: 0,
-  recoilKick: 0,
-  muzzleFlashUntil: 0,
-};
-
-const raycaster = new THREE.Raycaster();
-const screenCenter = new THREE.Vector2(0, 0);
-const smokeParticles = [];
-
-function updateAmmoHUD() {
-  ammoCurrentElement.textContent = weapon.ammo;
-  ammoMaxElement.textContent = weapon.maxAmmo;
-
-  if (weapon.reloading) {
-    weaponStateElement.textContent = "RELOADING";
-  } else if (weapon.ammo === 0) {
-    weaponStateElement.textContent = "EMPTY · R";
+function playGunshotSound(id){
+  ensureAudio(); const now=audioContext.currentTime;
+  if(id==="revolver"){
+    makeNoiseBurst(0.16,0.62,900);
+    const o=audioContext.createOscillator(); o.type="sine"; o.frequency.setValueAtTime(95,now); o.frequency.exponentialRampToValueAtTime(48,now+0.11);
+    const g=audioContext.createGain(); g.gain.setValueAtTime(0.5,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.12); o.connect(g).connect(audioContext.destination); o.start(now); o.stop(now+0.13);
   } else {
-    weaponStateElement.textContent = "REVOLVER";
+    makeNoiseBurst(0.075,0.32,1450);
+    const o=audioContext.createOscillator(); o.type="square"; o.frequency.setValueAtTime(280,now); o.frequency.exponentialRampToValueAtTime(150,now+0.045);
+    const g=audioContext.createGain(); g.gain.setValueAtTime(0.12,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.05); o.connect(g).connect(audioContext.destination); o.start(now); o.stop(now+0.055);
   }
 }
+function playEmptyClick(){ ensureAudio(); const now=audioContext.currentTime; const o=audioContext.createOscillator(); o.type="square"; o.frequency.setValueAtTime(1500,now); const g=audioContext.createGain(); g.gain.setValueAtTime(0.06,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.035); o.connect(g).connect(audioContext.destination); o.start(now); o.stop(now+0.04); }
+function playReloadSound(id){ ensureAudio(); const now=audioContext.currentTime; const seq=id==="assaultRifle"?[[0,720],[0.48,460],[1.02,920]]:[[0,1050],[0.38,650],[0.86,1050]]; seq.forEach(([off,f],i)=>{ const o=audioContext.createOscillator(); o.type=i===1?"triangle":"square"; o.frequency.setValueAtTime(f,now+off); const g=audioContext.createGain(); g.gain.setValueAtTime(0.04,now+off); g.gain.exponentialRampToValueAtTime(0.001,now+off+0.055); o.connect(g).connect(audioContext.destination); o.start(now+off); o.stop(now+off+0.06); }); }
+function playSwitchSound(){ ensureAudio(); const now=audioContext.currentTime; const o=audioContext.createOscillator(); o.type="triangle"; o.frequency.setValueAtTime(260,now); o.frequency.exponentialRampToValueAtTime(120,now+0.09); const g=audioContext.createGain(); g.gain.setValueAtTime(0.035,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.1); o.connect(g).connect(audioContext.destination); o.start(now); o.stop(now+0.11); }
 
-function showHit() {
-  hitFeedback.style.opacity = "1";
-  hitFeedback.style.transform = "translate(-50%,-50%) scale(1.25)";
-
-  setTimeout(() => {
-    hitFeedback.style.opacity = "0";
-    hitFeedback.style.transform = "translate(-50%,-50%) scale(.8)";
-  }, 85);
+// ---------- 무기 UI / 전환 ----------
+let toastTimer=null;
+function showWeaponToast(text){ switchToast.textContent=text; switchToast.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>switchToast.classList.remove("show"),700); }
+function updateWeaponHUD(){
+  const w=currentWeapon();
+  ammoCurrentElement.textContent=w.ammo; ammoMaxElement.textContent=w.maxAmmo;
+  weaponStateElement.textContent=w.reloading?"RELOADING":w.ammo===0?`${w.name} · EMPTY`:w.name;
+  slotAmmo1.textContent=`${weapons.assaultRifle.ammo} / ${weapons.assaultRifle.maxAmmo}`;
+  slotAmmo2.textContent=`${weapons.revolver.ammo} / ${weapons.revolver.maxAmmo}`;
+  document.querySelectorAll(".weapon-slot").forEach(e=>e.classList.toggle("active",Number(e.dataset.slot)===w.slot));
 }
-
-function pulseCrosshair() {
-  crosshair.style.transition = "transform .055s ease-out";
-  crosshair.style.transform = "translate(-50%, -50%) scale(1.45)";
-
-  setTimeout(() => {
-    crosshair.style.transform = "translate(-50%, -50%) scale(1)";
-  }, 60);
+function cancelReload(w){ if(!w.reloading)return; w.reloading=false; w.reloadStartedAt=0; w.reloadEndsAt=0; }
+function beginWeaponSwitch(targetId){
+  if(switching.active||targetId===currentWeaponId||!weapons[targetId])return;
+  cancelReload(currentWeapon()); mouseHeld=false;
+  switching.active=true; switching.targetId=targetId; switching.startedAt=performance.now(); switching.swapped=false; playSwitchSound();
 }
+function finishModelSwap(){ models[currentWeaponId].group.visible=false; currentWeaponId=switching.targetId; models[currentWeaponId].group.visible=true; switching.swapped=true; showWeaponToast(currentWeapon().name); updateWeaponHUD(); }
 
-function flashScreen() {
-  shotFlash.style.opacity = "1";
-  setTimeout(() => {
-    shotFlash.style.opacity = "0";
-  }, 38);
-}
-
-function spawnSmoke() {
-  const position = new THREE.Vector3();
-  const direction = new THREE.Vector3();
-
-  muzzle.getWorldPosition(position);
-  camera.getWorldDirection(direction);
-
-  for (let i = 0; i < 3; i++) {
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xbfc2c5,
-      transparent: true,
-      opacity: 0.22,
-      depthWrite: false,
-    });
-
-    const puff = new THREE.Mesh(
-      new THREE.SphereGeometry(0.025 + Math.random() * 0.018, 6, 6),
-      material
-    );
-
-    puff.position.copy(position);
-    scene.add(puff);
-
-    smokeParticles.push({
-      mesh: puff,
-      velocity: direction
-        .clone()
-        .multiplyScalar(0.28 + Math.random() * 0.25)
-        .add(
-          new THREE.Vector3(
-            (Math.random() - 0.5) * 0.16,
-            0.07 + Math.random() * 0.12,
-            (Math.random() - 0.5) * 0.16
-          )
-        ),
-      life: 0.32 + Math.random() * 0.18,
-      maxLife: 0.5,
-    });
+// ---------- 사격 ----------
+const raycaster=new THREE.Raycaster();
+const smokeParticles=[];
+function showHit(){ hitFeedback.style.opacity="1"; hitFeedback.style.transform="translate(-50%,-50%) scale(1.25)"; setTimeout(()=>{hitFeedback.style.opacity="0";hitFeedback.style.transform="translate(-50%,-50%) scale(.8)";},85); }
+function flashScreen(id){ shotFlash.style.opacity=id==="revolver"?"1":".45"; setTimeout(()=>shotFlash.style.opacity="0",id==="revolver"?38:24); }
+function spawnSmoke(id){
+  const model=currentModel(), position=new THREE.Vector3(), direction=new THREE.Vector3();
+  model.muzzle.getWorldPosition(position); camera.getWorldDirection(direction);
+  const count=id==="revolver"?3:1;
+  for(let i=0;i<count;i++){
+    const material=new THREE.MeshBasicMaterial({color:0xbfc2c5,transparent:true,opacity:id==="revolver"?0.22:0.12,depthWrite:false});
+    const puff=new THREE.Mesh(new THREE.SphereGeometry(0.022+Math.random()*0.016,6,6),material); puff.position.copy(position); scene.add(puff);
+    smokeParticles.push({mesh:puff,velocity:direction.clone().multiplyScalar(0.25+Math.random()*0.22).add(new THREE.Vector3((Math.random()-0.5)*0.13,0.06+Math.random()*0.1,(Math.random()-0.5)*0.13)),life:0.28+Math.random()*0.16,maxLife:0.44});
   }
 }
-
-function triggerShotFeedback() {
-  weapon.recoilKick = 1;
-
-  recoilPitch += 0.028;
-  recoilYaw += (Math.random() - 0.5) * 0.009;
-  shakePower = Math.min(1, shakePower + 0.7);
-
-  weapon.muzzleFlashUntil = performance.now() + 42;
-  muzzleFlash.visible = true;
-  muzzleLight.intensity = 2.5;
-
-  flashCone.rotation.z = Math.random() * Math.PI;
-  flashCone.scale.setScalar(0.85 + Math.random() * 0.35);
-  flashCore.scale.setScalar(0.8 + Math.random() * 0.3);
-
-  pulseCrosshair();
-  flashScreen();
-  spawnSmoke();
-  playGunshotSound();
+function triggerShotFeedback(w){
+  const model=currentModel(); w.recoilKick=1; recoilPitch+=w.recoilPitch; recoilYaw+=(Math.random()-0.5)*w.recoilYaw; shakePower=Math.min(1,shakePower+w.cameraShake);
+  w.muzzleFlashUntil=performance.now()+(w.id==="revolver"?42:28); model.flash.group.visible=true; model.flash.light.intensity=w.id==="revolver"?2.5:1.45; model.flash.cone.rotation.z=Math.random()*Math.PI; model.flash.cone.scale.setScalar(0.8+Math.random()*0.3); model.flash.core.scale.setScalar(0.78+Math.random()*0.25);
+  if(w.id==="revolver") model.cylinder.rotation.z+=Math.PI/3;
+  flashScreen(w.id); spawnSmoke(w.id); playGunshotSound(w.id);
 }
-
-function startReload() {
-  if (weapon.reloading || weapon.ammo === weapon.maxAmmo) {
-    return;
-  }
-
-  const now = performance.now();
-  weapon.reloading = true;
-  weapon.reloadStartedAt = now;
-  weapon.reloadEndsAt = now + weapon.reloadDuration;
-
-  updateAmmoHUD();
-  playReloadSound();
+function startReload(){
+  if(switching.active)return; const w=currentWeapon(); if(w.reloading||w.ammo===w.maxAmmo)return;
+  const now=performance.now(); w.reloading=true; w.reloadStartedAt=now; w.reloadEndsAt=now+w.reloadDuration; mouseHeld=false; updateWeaponHUD(); playReloadSound(w.id);
 }
-
-function shoot() {
-  if (
-    document.pointerLockElement !== renderer.domElement ||
-    weapon.reloading
-  ) {
-    return;
-  }
-
-  const now = performance.now();
-
-  if (now - weapon.lastShotAt < weapon.fireInterval) {
-    return;
-  }
-
-  weapon.lastShotAt = now;
-
-  if (weapon.ammo <= 0) {
-    playEmptyClick();
-    weapon.recoilKick = Math.max(weapon.recoilKick, 0.16);
-    return;
-  }
-
-  weapon.ammo -= 1;
-  updateAmmoHUD();
-
-  raycaster.setFromCamera(screenCenter, camera);
-  const hits = raycaster.intersectObjects(raycastWorld, false);
-
-  if (hits.length && hits[0].object.userData.isTarget) {
-    const target = hits[0].object;
-    target.material.emissive.setHex(0xffffff);
-    showHit();
-
-    setTimeout(() => {
-      target.material.emissive.setHex(0x000000);
-    }, 85);
-  }
-
-  triggerShotFeedback();
+function getShotNdc(w){ const air=w.id==="assaultRifle"&&!player.grounded?1.15:1; const spread=w.currentSpread*air; return new THREE.Vector2((Math.random()-0.5)*spread*2,(Math.random()-0.5)*spread*2); }
+function fireCurrentWeapon(){
+  if(document.pointerLockElement!==renderer.domElement||switching.active)return;
+  const w=currentWeapon(); if(w.reloading)return; const now=performance.now(); if(now-w.lastShotAt<w.fireInterval)return; w.lastShotAt=now;
+  if(w.ammo<=0){ playEmptyClick(); w.recoilKick=Math.max(w.recoilKick,0.12); return; }
+  w.ammo--; w.currentSpread=Math.min(w.maxSpread,w.currentSpread+w.spreadPerShot); updateWeaponHUD();
+  raycaster.setFromCamera(getShotNdc(w),camera); const hits=raycaster.intersectObjects(raycastWorld,false);
+  if(hits.length&&hits[0].object.userData.isTarget){ const t=hits[0].object; t.material.emissive.setHex(0xffffff); showHit(); setTimeout(()=>t.material.emissive.setHex(0x000000),75); }
+  triggerShotFeedback(w);
 }
-
-updateAmmoHUD();
+updateWeaponHUD();
 
 // ---------- 입력 ----------
-const keys = new Set();
-
-window.addEventListener("keydown", (event) => {
-  keys.add(event.code);
-
-  if (
-    event.code === "Space" &&
-    player.grounded &&
-    document.pointerLockElement === renderer.domElement
-  ) {
-    player.velocityY = player.jumpSpeed;
-    player.grounded = false;
-  }
-
-  if (event.code === "KeyR") {
-    startReload();
-  }
+const keys=new Set();
+window.addEventListener("keydown",e=>{
+  keys.add(e.code);
+  if(e.code==="Space"&&player.grounded&&document.pointerLockElement===renderer.domElement){ player.velocityY=player.jumpSpeed; player.grounded=false; }
+  if(e.code==="KeyR") startReload();
+  if(e.code==="Digit1") beginWeaponSwitch("assaultRifle");
+  if(e.code==="Digit2") beginWeaponSwitch("revolver");
 });
+window.addEventListener("keyup",e=>keys.delete(e.code));
+window.addEventListener("blur",()=>{keys.clear();mouseHeld=false;});
+window.addEventListener("mousedown",e=>{ if(e.button!==0)return; mouseHeld=true; if(!currentWeapon().automatic) fireCurrentWeapon(); });
+window.addEventListener("mouseup",e=>{if(e.button===0)mouseHeld=false;});
+const startScreen=document.getElementById("startScreen"), startButton=document.getElementById("startButton");
+startButton.addEventListener("click",()=>{ensureAudio();renderer.domElement.requestPointerLock();});
+renderer.domElement.addEventListener("click",()=>{ensureAudio();if(document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock();});
+document.addEventListener("pointerlockchange",()=>{const locked=document.pointerLockElement===renderer.domElement;startScreen.classList.toggle("hidden",locked);if(!locked){keys.clear();mouseHeld=false;}});
+document.addEventListener("mousemove",e=>{if(document.pointerLockElement!==renderer.domElement)return;yaw-=e.movementX*sensitivity;pitch-=e.movementY*sensitivity;pitch=THREE.MathUtils.clamp(pitch,-Math.PI/2+0.01,Math.PI/2-0.01);});
 
-window.addEventListener("keyup", (event) => {
-  keys.delete(event.code);
-});
-
-window.addEventListener("blur", () => {
-  keys.clear();
-});
-
-window.addEventListener("mousedown", (event) => {
-  if (event.button === 0) {
-    shoot();
-  }
-});
-
-const startScreen = document.getElementById("startScreen");
-const startButton = document.getElementById("startButton");
-
-startButton.addEventListener("click", () => {
-  ensureAudio();
-  renderer.domElement.requestPointerLock();
-});
-
-renderer.domElement.addEventListener("click", () => {
-  ensureAudio();
-
-  if (document.pointerLockElement !== renderer.domElement) {
-    renderer.domElement.requestPointerLock();
-  }
-});
-
-document.addEventListener("pointerlockchange", () => {
-  const locked = document.pointerLockElement === renderer.domElement;
-  startScreen.classList.toggle("hidden", locked);
-
-  if (!locked) {
-    keys.clear();
-  }
-});
-
-document.addEventListener("mousemove", (event) => {
-  if (document.pointerLockElement !== renderer.domElement) {
-    return;
-  }
-
-  yaw -= event.movementX * sensitivity;
-  pitch -= event.movementY * sensitivity;
-  pitch = THREE.MathUtils.clamp(
-    pitch,
-    -Math.PI / 2 + 0.01,
-    Math.PI / 2 - 0.01
-  );
-});
-
-// ---------- 충돌 / 이동 ----------
-function verticalOverlap(box) {
-  return (
-    player.position.y + player.height > box.minY &&
-    player.position.y < box.maxY
-  );
+// ---------- 이동 / 충돌 ----------
+function verticalOverlap(b){return player.position.y+player.height>b.minY&&player.position.y<b.maxY;}
+function collidesAt(x,z){const r=player.radius;for(const b of colliders){if(!verticalOverlap(b))continue;if(x+r>b.minX&&x-r<b.maxX&&z+r>b.minZ&&z-r<b.maxZ)return true;}return false;}
+function moveHorizontally(dx,dz){const nx=player.position.x+dx;if(!collidesAt(nx,player.position.z))player.position.x=nx;const nz=player.position.z+dz;if(!collidesAt(player.position.x,nz))player.position.z=nz;}
+const forward=new THREE.Vector3(), right=new THREE.Vector3(), wishDirection=new THREE.Vector3();
+function updateMovement(delta){
+  let x=0,z=0;if(keys.has("KeyW"))z++;if(keys.has("KeyS"))z--;if(keys.has("KeyD"))x++;if(keys.has("KeyA"))x--;
+  forward.set(-Math.sin(yaw),0,-Math.cos(yaw));right.set(Math.cos(yaw),0,-Math.sin(yaw));wishDirection.set(0,0,0).addScaledVector(forward,z).addScaledVector(right,x);
+  if(wishDirection.lengthSq()>0){wishDirection.normalize();const distance=player.moveSpeed*delta;moveHorizontally(wishDirection.x*distance,wishDirection.z*distance);}
+  player.velocityY+=player.gravity*delta;player.position.y+=player.velocityY*delta;
+  if(player.position.y<=0){player.position.y=0;player.velocityY=0;player.grounded=true;}else player.grounded=false;
 }
 
-function collidesAt(x, z) {
-  const radius = player.radius;
-
-  for (const box of colliders) {
-    if (!verticalOverlap(box)) {
-      continue;
-    }
-
-    if (
-      x + radius > box.minX &&
-      x - radius < box.maxX &&
-      z + radius > box.minZ &&
-      z - radius < box.maxZ
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+// ---------- 프레임 업데이트 ----------
+function updateWeaponSwitch(now){
+  if(!switching.active)return 0;
+  const t=THREE.MathUtils.clamp((now-switching.startedAt)/switching.duration,0,1);
+  if(t>=0.5&&!switching.swapped)finishModelSwap();
+  const half=t<0.5?t*2:(1-t)*2; const eased=1-Math.pow(1-half,3); const drop=eased*0.42;
+  if(t>=1){switching.active=false;switching.targetId=null;switching.swapped=false;return 0;} return drop;
 }
-
-function moveHorizontally(dx, dz) {
-  const nextX = player.position.x + dx;
-  if (!collidesAt(nextX, player.position.z)) {
-    player.position.x = nextX;
-  }
-
-  const nextZ = player.position.z + dz;
-  if (!collidesAt(player.position.x, nextZ)) {
-    player.position.z = nextZ;
-  }
+function updateReloadState(now){Object.values(weapons).forEach(w=>{if(w.reloading&&now>=w.reloadEndsAt){w.reloading=false;w.ammo=w.maxAmmo;w.reloadStartedAt=0;w.reloadEndsAt=0;updateWeaponHUD();}});}
+function updateWeaponAnimation(delta,now,switchDrop){
+  const w=currentWeapon(), model=currentModel();
+  Object.entries(weapons).forEach(([id,data])=>{const m=models[id];if(data.muzzleFlashUntil<=now){m.flash.group.visible=false;m.flash.light.intensity=0;}data.recoilKick=THREE.MathUtils.lerp(data.recoilKick,0,1-Math.exp(-18*delta));});
+  let reloadDrop=0,reloadTilt=0;
+  if(w.reloading){
+    const t=THREE.MathUtils.clamp((now-w.reloadStartedAt)/w.reloadDuration,0,1),curve=Math.sin(Math.PI*t);reloadDrop=curve*(w.id==="assaultRifle"?0.19:0.16);reloadTilt=curve*(w.id==="assaultRifle"?0.34:0.5);
+    if(w.id==="revolver")model.cylinder.rotation.z+=delta*9;else{const magCurve=t<0.5?Math.sin(Math.PI*(t/0.5))*0.17:Math.sin(Math.PI*((1-t)/0.5))*0.11;model.magazine.position.y=model.magazineBaseY-Math.max(0,magCurve);}
+  } else if(w.id==="assaultRifle") model.magazine.position.y=THREE.MathUtils.lerp(model.magazine.position.y,model.magazineBaseY,1-Math.exp(-22*delta));
+  const recoil=w.recoilKick;
+  weaponRig.position.set(weaponBasePosition.x,weaponBasePosition.y-switchDrop-reloadDrop-recoil*0.03,weaponBasePosition.z+recoil*(w.id==="revolver"?0.115:0.065));
+  weaponRig.rotation.x=reloadTilt+recoil*(w.id==="revolver"?0.16:0.07);weaponRig.rotation.z=reloadTilt*-0.24+recoil*(w.id==="revolver"?0.025:0.012);
 }
-
-const forward = new THREE.Vector3();
-const right = new THREE.Vector3();
-const wishDirection = new THREE.Vector3();
-
-function updateMovement(delta) {
-  let inputX = 0;
-  let inputZ = 0;
-
-  if (keys.has("KeyW")) inputZ += 1;
-  if (keys.has("KeyS")) inputZ -= 1;
-  if (keys.has("KeyD")) inputX += 1;
-  if (keys.has("KeyA")) inputX -= 1;
-
-  forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
-  right.set(Math.cos(yaw), 0, -Math.sin(yaw));
-
-  wishDirection
-    .set(0, 0, 0)
-    .addScaledVector(forward, inputZ)
-    .addScaledVector(right, inputX);
-
-  if (wishDirection.lengthSq() > 0) {
-    wishDirection.normalize();
-
-    // 점프 중에도 지상과 동일한 수평 속도 유지.
-    const distance = player.moveSpeed * delta;
-
-    moveHorizontally(
-      wishDirection.x * distance,
-      wishDirection.z * distance
-    );
-  }
-
-  player.velocityY += player.gravity * delta;
-  player.position.y += player.velocityY * delta;
-
-  if (player.position.y <= 0) {
-    player.position.y = 0;
-    player.velocityY = 0;
-    player.grounded = true;
-  } else {
-    player.grounded = false;
-  }
-}
-
-// ---------- 연출 업데이트 ----------
-function updateWeaponAnimation(delta, now) {
-  if (weapon.muzzleFlashUntil <= now) {
-    muzzleFlash.visible = false;
-    muzzleLight.intensity = 0;
-  }
-
-  weapon.recoilKick = THREE.MathUtils.lerp(
-    weapon.recoilKick,
-    0,
-    1 - Math.exp(-18 * delta)
-  );
-
-  const recoil = weapon.recoilKick;
-
-  let reloadDrop = 0;
-  let reloadTilt = 0;
-
-  if (weapon.reloading) {
-    const t = THREE.MathUtils.clamp(
-      (now - weapon.reloadStartedAt) / weapon.reloadDuration,
-      0,
-      1
-    );
-
-    const curve = Math.sin(Math.PI * t);
-    reloadDrop = curve * 0.16;
-    reloadTilt = curve * 0.5;
-    cylinder.rotation.z += delta * 9;
-  }
-
-  weaponRoot.position.set(
-    weaponBasePosition.x,
-    weaponBasePosition.y - reloadDrop - recoil * 0.035,
-    weaponBasePosition.z + recoil * 0.115
-  );
-
-  weaponRoot.rotation.x = reloadTilt + recoil * 0.16;
-  weaponRoot.rotation.z = reloadTilt * -0.28 + recoil * 0.025;
-}
-
-function updateCameraFeedback(delta) {
-  const recoilDecay = 1 - Math.exp(-13 * delta);
-  recoilPitch = THREE.MathUtils.lerp(recoilPitch, 0, recoilDecay);
-  recoilYaw = THREE.MathUtils.lerp(recoilYaw, 0, recoilDecay);
-
-  shakePower = Math.max(0, shakePower - delta * 7.5);
-
-  if (shakePower > 0) {
-    shakePitch = (Math.random() - 0.5) * 0.006 * shakePower;
-    shakeYaw = (Math.random() - 0.5) * 0.006 * shakePower;
-  } else {
-    shakePitch = 0;
-    shakeYaw = 0;
-  }
-}
-
-function updateSmoke(delta) {
-  for (let i = smokeParticles.length - 1; i >= 0; i--) {
-    const particle = smokeParticles[i];
-
-    particle.life -= delta;
-
-    if (particle.life <= 0) {
-      scene.remove(particle.mesh);
-      particle.mesh.geometry.dispose();
-      particle.mesh.material.dispose();
-      smokeParticles.splice(i, 1);
-      continue;
-    }
-
-    particle.mesh.position.addScaledVector(particle.velocity, delta);
-    particle.velocity.multiplyScalar(Math.pow(0.93, delta * 60));
-
-    const lifeRatio = particle.life / particle.maxLife;
-    particle.mesh.material.opacity = Math.max(0, lifeRatio * 0.2);
-
-    const scale = 1 + (1 - lifeRatio) * 2;
-    particle.mesh.scale.setScalar(scale);
-  }
-}
+function updateCameraFeedback(delta){const decay=1-Math.exp(-13*delta);recoilPitch=THREE.MathUtils.lerp(recoilPitch,0,decay);recoilYaw=THREE.MathUtils.lerp(recoilYaw,0,decay);shakePower=Math.max(0,shakePower-delta*7.5);if(shakePower>0){shakePitch=(Math.random()-0.5)*0.006*shakePower;shakeYaw=(Math.random()-0.5)*0.006*shakePower;}else{shakePitch=0;shakeYaw=0;}}
+function updateSmoke(delta){for(let i=smokeParticles.length-1;i>=0;i--){const p=smokeParticles[i];p.life-=delta;if(p.life<=0){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();smokeParticles.splice(i,1);continue;}p.mesh.position.addScaledVector(p.velocity,delta);p.velocity.multiplyScalar(Math.pow(0.93,delta*60));const ratio=p.life/p.maxLife;p.mesh.material.opacity=Math.max(0,ratio*0.2);p.mesh.scale.setScalar(1+(1-ratio)*2);}}
+function updateSpread(delta){Object.values(weapons).forEach(w=>w.currentSpread=Math.max(w.baseSpread,w.currentSpread-w.spreadRecovery*delta));const w=currentWeapon();const ratio=w.maxSpread>w.baseSpread?(w.currentSpread-w.baseSpread)/(w.maxSpread-w.baseSpread):0;const scale=w.crosshairBaseScale+ratio*(w.id==="assaultRifle"?1.35:0.3);crosshair.style.transition="transform .04s linear";crosshair.style.transform=`translate(-50%, -50%) scale(${scale})`;}
 
 // ---------- 게임 루프 ----------
-let fpsTimer = 0;
-let fpsFrames = 0;
-const clock = new THREE.Clock();
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const delta = Math.min(clock.getDelta(), 0.05);
-  const now = performance.now();
-
-  if (document.pointerLockElement === renderer.domElement) {
-    updateMovement(delta);
-  }
-
-  if (weapon.reloading && now >= weapon.reloadEndsAt) {
-    weapon.reloading = false;
-    weapon.ammo = weapon.maxAmmo;
-    updateAmmoHUD();
-  }
-
-  updateWeaponAnimation(delta, now);
-  updateCameraFeedback(delta);
-  updateSmoke(delta);
-  syncCamera();
-
-  fpsTimer += delta;
-  fpsFrames += 1;
-
-  if (fpsTimer >= 0.5) {
-    fpsElement.textContent = `FPS: ${Math.round(fpsFrames / fpsTimer)}`;
-    fpsTimer = 0;
-    fpsFrames = 0;
-  }
-
-  stateElement.textContent = player.grounded ? "GROUND" : "AIR";
-
-  renderer.render(scene, camera);
+let fpsTimer=0,fpsFrames=0;const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);const delta=Math.min(clock.getDelta(),0.05),now=performance.now();
+  if(document.pointerLockElement===renderer.domElement){updateMovement(delta);if(mouseHeld&&!switching.active&&currentWeapon().automatic)fireCurrentWeapon();}
+  updateReloadState(now);const switchDrop=updateWeaponSwitch(now);updateWeaponAnimation(delta,now,switchDrop);updateCameraFeedback(delta);updateSmoke(delta);updateSpread(delta);syncCamera();
+  fpsTimer+=delta;fpsFrames++;if(fpsTimer>=0.5){fpsElement.textContent=`FPS: ${Math.round(fpsFrames/fpsTimer)}`;fpsTimer=0;fpsFrames=0;}
+  stateElement.textContent=player.grounded?"GROUND":"AIR";renderer.render(scene,camera);
 }
-
 animate();
-
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-});
+window.addEventListener("resize",()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));});
