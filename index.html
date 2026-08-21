@@ -3,16 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HTML FPS - Stage 1</title>
-  <link rel="stylesheet" href="./style.css" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>HTML FPS - Stage 2</title>
+  <link rel="stylesheet" href="./style.css?v=2.0.0" />
 </head>
 <body>
   <div id="hud">
     <div id="crosshair"></div>
 
     <div id="info">
-      <strong>STAGE 1</strong><br />
-      WASD 이동 · Space 점프 · 마우스 시점 · ESC 마우스 해제
+      <strong>STAGE 2</strong><br />
+      WASD 이동 · Space 점프 · 좌클릭 발사 · R 재장전 · ESC 마우스 해제
     </div>
 
     <div id="debug">
@@ -23,18 +26,20 @@
 
   <div id="startScreen">
     <div class="panel">
-      <h1>HTML FPS — Stage 1</h1>
-      <p>이동 시스템 테스트</p>
+      <h1>HTML FPS — Stage 2</h1>
+      <p>리볼버 기본 시스템 테스트</p>
       <button id="startButton">클릭해서 시작</button>
       <div class="controls">
         <span>WASD — 이동</span>
         <span>Mouse — 시점</span>
         <span>Space — 점프</span>
+        <span>좌클릭 — 발사</span>
+        <span>R — 재장전</span>
         <span>ESC — 마우스 해제</span>
       </div>
     </div>
   </div>
 
-  <script type="module" src="./src/main.js"></script>
+  <script type="module" src="./src/main.js?v=2.0.0"></script>
 </body>
 </html>
