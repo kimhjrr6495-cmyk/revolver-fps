@@ -100,7 +100,7 @@ const player = {
   eyeHeight: 1.62,
 
   moveSpeed: 6.4,
-  airControl: 0.42,
+  airControl: 1.0,
   jumpSpeed: 8.2,
   gravity: -23.0,
 
