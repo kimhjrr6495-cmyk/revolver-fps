@@ -9,11 +9,7 @@
   <title>ZEROFRAME - Visual Rebuild Stable</title>
   <link rel="stylesheet" href="./style.css?v=8.5.1" />
 
-  <!--
-    Three.js example modules (including RoundedBoxGeometry) import the bare
-    specifier "three". GitHub Pages has no bundler, so we map it explicitly.
-    This fixes the Stage 8.5 boot failure without adding another dependency.
-  -->
+  <!-- Three.js examples import the bare specifier "three". GitHub Pages has no bundler. -->
   <script type="importmap">
   {
     "imports": {
@@ -21,6 +17,12 @@
     }
   }
   </script>
+
+  <style>
+    #bootStatus{position:fixed;left:18px;bottom:18px;z-index:100;display:grid;gap:3px;max-width:min(480px,calc(100vw - 36px));padding:9px 11px;border:1px solid rgba(255,255,255,.10);border-radius:9px;background:rgba(4,8,12,.78);backdrop-filter:blur(9px);color:#fff;font-family:Arial,Helvetica,sans-serif;box-shadow:0 12px 34px rgba(0,0,0,.28)}
+    #bootStatus strong{font-size:9px;letter-spacing:.18em}#bootStatus span{font-size:10px;opacity:.55}#bootStatus small{font-size:9px;line-height:1.45;opacity:.5}#bootStatus.error{border-color:rgba(255,70,85,.38);background:rgba(31,7,11,.88)}#bootStatus.error strong{color:#ff6572}
+    .eyebrow{margin-bottom:8px;font-size:9px;font-weight:900;letter-spacing:.22em;opacity:.38}
+  </style>
 </head>
 <body>
   <div id="bootStatus" role="status" aria-live="polite">
@@ -65,6 +67,10 @@
     }, 6500);
   </script>
 
-  <script type="module" src="./src/main85.js?v=8.5.1"></script>
+  <script type="module">
+    import "./src/main85.js?v=8.5.1";
+    window.__ZEROFRAME_BOOTED__ = true;
+    document.getElementById("bootStatus")?.remove();
+  </script>
 </body>
 </html>
