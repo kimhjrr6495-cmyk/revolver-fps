@@ -6,20 +6,39 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>ZEROFRAME - Visual Rebuild</title>
-  <link rel="stylesheet" href="./style.css?v=8.5.0" />
+  <title>ZEROFRAME - Visual Rebuild Stable</title>
+  <link rel="stylesheet" href="./style.css?v=8.5.1" />
+
+  <!--
+    Three.js example modules (including RoundedBoxGeometry) import the bare
+    specifier "three". GitHub Pages has no bundler, so we map it explicitly.
+    This fixes the Stage 8.5 boot failure without adding another dependency.
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+    }
+  }
+  </script>
 </head>
 <body>
+  <div id="bootStatus" role="status" aria-live="polite">
+    <strong>ZEROFRAME</strong>
+    <span>BOOTING VISUAL BUILD...</span>
+  </div>
+
   <div id="hud">
     <div id="crosshair"></div>
-    <div id="info"><strong>STAGE 8.5</strong><br />Visual Rebuild</div>
+    <div id="info"><strong>STAGE 8.5.1</strong><br />Stable Visual Rebuild</div>
     <div id="debug"><span id="fps">FPS: --</span><span id="state">GROUND</span></div>
   </div>
 
   <div id="startScreen">
     <div class="panel">
+      <div class="eyebrow">STAGE 8.5.1 · STABLE BUILD</div>
       <h1>ZEROFRAME</h1>
-      <p>Visual Rebuild Checkpoint · Stage 8.5</p>
+      <p>Visual Rebuild Checkpoint · boot stability hotfix</p>
       <button id="startButton">ENTER ARENA</button>
       <div class="controls">
         <span>WASD — 이동</span><span>Mouse — 시점</span><span>Space — 점프</span><span>좌클릭 — 발사</span><span>1 / 2 — 무기 전환</span><span>R — 재장전</span><span>P — 설정</span><span>T — 런 리셋</span>
@@ -27,6 +46,25 @@
     </div>
   </div>
 
-  <script type="module" src="./src/main85.js?v=8.5.0"></script>
+  <script>
+    window.__ZEROFRAME_BOOTED__ = false;
+    const boot = document.getElementById('bootStatus');
+    const showBootError = (message) => {
+      if (!boot) return;
+      boot.classList.add('error');
+      boot.innerHTML = `<strong>BOOT ERROR</strong><span>${String(message || 'Unknown error').replace(/[<>]/g, '')}</span><small>Ctrl + Shift + R로 새로고침해보고, 계속 뜨면 이 문구를 그대로 보내줘.</small>`;
+    };
+    window.addEventListener('error', (event) => {
+      if (!window.__ZEROFRAME_BOOTED__) showBootError(event.message || 'Module/resource load failed');
+    }, true);
+    window.addEventListener('unhandledrejection', (event) => {
+      if (!window.__ZEROFRAME_BOOTED__) showBootError(event.reason?.message || event.reason || 'Module rejected');
+    });
+    setTimeout(() => {
+      if (!window.__ZEROFRAME_BOOTED__) showBootError('Game module did not finish booting.');
+    }, 6500);
+  </script>
+
+  <script type="module" src="./src/main85.js?v=8.5.1"></script>
 </body>
 </html>
