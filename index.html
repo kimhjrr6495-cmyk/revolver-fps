@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>ZEROFRAME - Visual Rebuild Stable</title>
-  <link rel="stylesheet" href="./style.css?v=8.5.1" />
+  <link rel="stylesheet" href="./style.css?v=8.5.2" />
 
   <!-- Three.js examples import the bare specifier "three". GitHub Pages has no bundler. -->
   <script type="importmap">
@@ -32,15 +32,15 @@
 
   <div id="hud">
     <div id="crosshair"></div>
-    <div id="info"><strong>STAGE 8.5.1</strong><br />Stable Visual Rebuild</div>
+    <div id="info"><strong>STAGE 8.5.2</strong><br />Enemy Visibility Polish</div>
     <div id="debug"><span id="fps">FPS: --</span><span id="state">GROUND</span></div>
   </div>
 
   <div id="startScreen">
     <div class="panel">
-      <div class="eyebrow">STAGE 8.5.1 · STABLE BUILD</div>
+      <div class="eyebrow">STAGE 8.5.2 · VISIBILITY PASS</div>
       <h1>ZEROFRAME</h1>
-      <p>Visual Rebuild Checkpoint · boot stability hotfix</p>
+      <p>Visual Rebuild Checkpoint · enemy silhouette outline</p>
       <button id="startButton">ENTER ARENA</button>
       <div class="controls">
         <span>WASD — 이동</span><span>Mouse — 시점</span><span>Space — 점프</span><span>좌클릭 — 발사</span><span>1 / 2 — 무기 전환</span><span>R — 재장전</span><span>P — 설정</span><span>T — 런 리셋</span>
@@ -68,7 +68,8 @@
   </script>
 
   <script type="module">
-    import "./src/main85.js?v=8.5.1";
+    import "./src/enemy-outline-patch.js?v=8.5.2";
+    import "./src/main85.js?v=8.5.2";
     window.__ZEROFRAME_BOOTED__ = true;
     document.getElementById("bootStatus")?.remove();
   </script>
