@@ -70,6 +70,12 @@
   <script type="module">
     import "./src/enemy-outline-patch.js?v=8.5.2";
     import "./src/main85.js?v=8.5.2";
+
+    document.title = "ZEROFRAME - Enemy Visibility Polish";
+    document.getElementById("info").innerHTML = `<strong>STAGE 8.5.2 · ENEMY OUTLINE</strong><br><span class="muted">BLACK SILHOUETTE · CYAN RIM</span>`;
+    document.querySelector(".eyebrow").textContent = "STAGE 8.5.2 · VISIBILITY PASS";
+    document.querySelector(".panel p").textContent = "Visual Rebuild Checkpoint · enemy silhouette outline";
+
     window.__ZEROFRAME_BOOTED__ = true;
     document.getElementById("bootStatus")?.remove();
   </script>
